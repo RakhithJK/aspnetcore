@@ -17,5 +17,10 @@ namespace Microsoft.AspNetCore.Http
         /// The list of route parameter names that are specified for this handler.
         /// </summary>
         public IEnumerable<string>? RouteParameterNames { get; init; }
+
+        /// <summary>
+        /// Allow the delegate to infer a parameter as from the request body.
+        /// </summary>
+        public bool AllowImplicitFromBody { get; set; }
     }
 }
