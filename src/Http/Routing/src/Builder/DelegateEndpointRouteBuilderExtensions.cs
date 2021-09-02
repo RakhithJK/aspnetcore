@@ -38,7 +38,7 @@ namespace Microsoft.AspNetCore.Builder
             string pattern,
             Delegate handler)
         {
-            return MapMethods(endpoints, pattern, GetVerb, handler, allowImplicitFromBody: false);
+            return MapMethods(endpoints, pattern, GetVerb, handler);
         }
 
         /// <summary>
@@ -86,14 +86,14 @@ namespace Microsoft.AspNetCore.Builder
             string pattern,
             Delegate handler)
         {
-            return MapMethods(endpoints, pattern, DeleteVerb, handler, allowImplicitFromBody: false);
+            return MapMethods(endpoints, pattern, DeleteVerb, handler);
         }
 
         private static DelegateEndpointConventionBuilder Map(
             this IEndpointRouteBuilder endpoints,
             RoutePattern pattern,
             Delegate handler,
-            bool allowImplicitFromBody)
+            bool disableImplicitFromBody)
         {
             if (endpoints is null)
             {
@@ -122,7 +122,7 @@ namespace Microsoft.AspNetCore.Builder
             {
                 ServiceProvider = endpoints.ServiceProvider,
                 RouteParameterNames = routeParams,
-                AllowImplicitFromBody = allowImplicitFromBody
+                DisableImplicitFromBody = disableImplicitFromBody
             };
 
             var requestDelegateResult = RequestDelegateFactory.Create(handler, options);
@@ -197,22 +197,24 @@ namespace Microsoft.AspNetCore.Builder
            IEnumerable<string> httpMethods,
            Delegate handler)
         {
-            return MapMethods(endpoints, pattern, httpMethods, handler, allowImplicitFromBody: true);
-        }
-
-        private static DelegateEndpointConventionBuilder MapMethods(
-           this IEndpointRouteBuilder endpoints,
-           string pattern,
-           IEnumerable<string> httpMethods,
-           Delegate handler,
-           bool allowImplicitFromBody)
-        {
             if (httpMethods is null)
             {
                 throw new ArgumentNullException(nameof(httpMethods));
             }
 
-            var builder = endpoints.Map(RoutePatternFactory.Parse(pattern), handler, allowImplicitFromBody);
+            var disableImplicitFromBody = false;
+            // GET, DELETE, HEAD, CONNECT, TRACE, and OPTIONS normally do not contain bodies
+            if (!httpMethods.Any(method => !(method.Equals(HttpMethods.Get, StringComparison.Ordinal) ||
+                method.Equals(HttpMethods.Delete, StringComparison.Ordinal) ||
+                method.Equals(HttpMethods.Head, StringComparison.Ordinal) ||
+                method.Equals(HttpMethods.Options, StringComparison.Ordinal) ||
+                method.Equals(HttpMethods.Trace, StringComparison.Ordinal) ||
+                method.Equals(HttpMethods.Connect, StringComparison.Ordinal))))
+            {
+                disableImplicitFromBody = true;
+            }
+
+            var builder = endpoints.Map(RoutePatternFactory.Parse(pattern), handler, disableImplicitFromBody);
             // Prepends the HTTP method to the DisplayName produced with pattern + method name
             builder.Add(b => b.DisplayName = $"HTTP: {string.Join(", ", httpMethods)} {b.DisplayName}");
             builder.WithMetadata(new HttpMethodMetadata(httpMethods));
@@ -248,7 +250,7 @@ namespace Microsoft.AspNetCore.Builder
             RoutePattern pattern,
             Delegate handler)
         {
-            return Map(endpoints, pattern, handler, allowImplicitFromBody: true);
+            return Map(endpoints, pattern, handler, disableImplicitFromBody: false);
         }
 
         /// <summary>
